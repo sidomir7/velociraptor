@@ -1,58 +1,51 @@
-# Only trigger when a PR is committed or manually.
-name: Linux Build All Arches
-#on: [pull_request]
+
+name: Linux ARM32 Raspberry Pi Build
+
 on:
-  pull_request:
-    types: [closed]
-    branches:
-      - master
   workflow_dispatch:
 
 jobs:
-  build:
-    if: github.event.pull_request.merged || github.event_name == 'workflow_dispatch'
-    name: Build
-    runs-on: ubuntu-latest
+  build-arm32:
+    name: Build ARMv7
+    runs-on: ubuntu-22.04
+
     steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
 
-    - name: Check out code into the Go module directory
-      uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.26.x'
+          cache: false
 
-    - name: Set up Go 1.27
-      uses: actions/setup-go@4a3601121dd01d1626a1e23e37211e3254c1c06c
-      with:
-        go-version: '^1.27.2'
+      - name: Install ARMHF toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-arm-linux-gnueabihf \
+            libc6-dev-armhf-cross \
+            binutils-arm-linux-gnueabihf
 
-        # Caching seems to really slow down the build due to the time
-        # taken to save the cache.
-        cache: false
+      - name: Build ARM32
+        env:
+          GOMAXPROCS: "2"
+          GOFLAGS: "-p=2"
+          GOARM: "7"
+        run: |
+          mkdir -p output
+          go run github.com/magefile/mage linuxArmhf
 
-    - run: go version
+      - name: Verify ARM32 binary
+        run: |
+          file output/velociraptor-v0.77.3-linux-arm
+          arm-linux-gnueabihf-readelf -V \
+            output/velociraptor-v0.77.3-linux-arm \
+            | grep GLIBC_ || true
 
-    - name: Use Node.js
-      uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e
-
-    - name: npm install gui
-      run: |
-            cd gui/velociraptor/
-            npm install
-            npm run build
-            cd ../../
-
-    - name: Build All Architectures
-      # Uncomment the architectures you want here. NOTE: DarwinBase
-      # does not include yara or modules with C compilers needed.
-      run: |
-        mkdir ./output/
-        export PATH=$PATH:~/go/bin/
-        go run make.go -v UpdateDependentTools
-        go run make.go -v DarwinBase
-        go run make.go -v Windows
-        go run make.go -v WindowsSumo
-        go run make.go -v WindowsArm64
-
-    - name: StoreBinaries
-      uses: actions/upload-artifact@4cec3d8aa04e39d1a68397de0c4cd6fb9dce8ec1
-      with:
-        name: Binaries
-        path: output
+      - name: Upload ARM32 binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: velociraptor-v0.77.3-linux-arm32
+          path: output/velociraptor-v0.77.3-linux-arm
+          if-no-files-found: error
