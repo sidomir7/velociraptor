@@ -45,17 +45,17 @@ func (self *OSFileInfo) Btime() time.Time {
 
 func (self *OSFileInfo) Mtime() time.Time {
 	ts := self._Sys().Mtim
-	return time.Unix(ts.Sec, ts.Nsec)
+	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
 }
 
 func (self *OSFileInfo) Ctime() time.Time {
 	ts := self._Sys().Ctim
-	return time.Unix(ts.Sec, ts.Nsec)
+	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
 }
 
 func (self *OSFileInfo) Atime() time.Time {
 	ts := self._Sys().Atim
-	return time.Unix(ts.Sec, ts.Nsec)
+	return time.Unix(int64(ts.Sec), int64(ts.Nsec))
 }
 
 func splitDevNumber(dev uint64) (major, minor uint64) {
